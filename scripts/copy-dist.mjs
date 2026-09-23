@@ -7,7 +7,7 @@ const projectRoot = join(__dirname, '..');
 const distDir = join(projectRoot, 'dist');
 
 const STATIC_FILES = [
-  'index.html', 'application.html', 'admin.html', 'auth.html',
+  'index.html', 'application.html', 'auth.html',
   'profile.html', 'eligibility.html', 'about.html',
 ];
 

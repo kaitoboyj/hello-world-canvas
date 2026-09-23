@@ -6,5 +6,3 @@ cp *.html dist/
 cp -r css/. dist/css/
 cp -r js/. dist/js/
 cp "usa logo.png" dist/
-mkdir -p dist/admin
-cp -r admin/. dist/admin/
