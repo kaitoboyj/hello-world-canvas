@@ -14,7 +14,7 @@
     "build": "npm run build:env && npm run build:copy-dist",
     "netlify:build": "npm run build",
     "lint:secrets": "node scripts/lint-secrets.mjs",
-    "supabase:link": "supabase link --project-ref ivsropdgnckrwfwibfei",
+    "supabase:link": "supabase link --project-ref vyojuxtoigpvvjepdimo",
     "supabase:migrate": "supabase db push",
     "supabase:login": "supabase login"
   },
