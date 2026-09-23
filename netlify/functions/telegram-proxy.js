@@ -29,14 +29,17 @@ exports.handler = async function (event, context) {
 
     if (ct.includes('multipart/form-data')) {
       const raw = Buffer.from(event.body || '', event.isBase64Encoded ? 'base64' : 'utf8');
-      const boundaryMatch = ct.match(/boundary=(.+)/);
+      const boundaryMatch = ct.match(/boundary=("([^"]+)"|([^;]+))/);
       if (!boundaryMatch) return jsonResponse(400, { error: 'Invalid multipart content-type' });
-      const boundary = '--' + boundaryMatch[1].trim();
+      const boundaryValue = (boundaryMatch[2] || boundaryMatch[3] || '').trim();
+      const boundary = '--' + boundaryValue;
       const sections = raw.toString('binary').split(boundary).slice(1, -1);
       body = {};
       for (const section of sections) {
-        const [head, ...rest] = section.split('\r\n\r\n');
-        const data = rest.join('\r\n\r\n').replace(/\r\n--\r\n$/, '').replace(/^\r\n/, '');
+        const sepIndex = section.indexOf('\r\n\r\n');
+        if (sepIndex === -1) continue;
+        const head = section.slice(0, sepIndex);
+        const data = section.slice(sepIndex + 4).replace(/\r\n$/, '');
         const nameMatch = head.match(/name="([^"]+)"/);
         const fileMatch = head.match(/filename="([^"]+)"/);
         const typeMatch = head.match(/Content-Type: ([^\r\n]+)/);

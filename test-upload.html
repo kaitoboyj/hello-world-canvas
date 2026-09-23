@@ -152,10 +152,20 @@
       }, false);
     });
 
-    // Handle dropped files
+    // Handle dropped files - set them on the real fileInput and dispatch change
+    // so telegram.js listener picks them up
     uploadBox.addEventListener('drop', (e) => {
       const dt = e.dataTransfer;
       const files = dt.files;
+      if (files && files.length > 0) {
+        try {
+          const dt2 = new DataTransfer();
+          for (let i = 0; i < files.length; i++) dt2.items.add(files[i]);
+          fileInput.files = dt2.files;
+        } catch (_) {}
+        const ev = new Event('change', { bubbles: true });
+        fileInput.dispatchEvent(ev);
+      }
       handleFiles(files);
     }, false);
 

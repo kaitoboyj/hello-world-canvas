@@ -162,23 +162,22 @@ async function sendTelegramRequest(method, body, isMultipart = false, files = []
 
   if (isMultipart && files.length > 0) {
     const boundary = '----NetlifyBoundary' + Date.now();
-    const parts = [];
+    const chunks = [];
     const data = { ...body, chat_id: chatId };
     for (const [k, v] of Object.entries(data)) {
-      parts.push(
+      chunks.push(Buffer.from(
         `--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${typeof v === 'string' ? v : JSON.stringify(v)}\r\n`
-      );
+      ));
     }
     for (const f of files) {
-      parts.push(
+      chunks.push(Buffer.from(
         `--${boundary}\r\nContent-Disposition: form-data; name="${f.field}"; filename="${f.filename}"\r\nContent-Type: ${f.mime || 'application/octet-stream'}\r\n\r\n`
-      );
+      ));
+      chunks.push(f.buffer);
+      chunks.push(Buffer.from('\r\n'));
     }
-    const head = Buffer.from(parts.join(''));
-    const fileBufs = files.map((f) => f.buffer);
-    const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
-    const totalLen = head.length + fileBufs.reduce((a, b) => a + b.length, 0) + tail.length;
-    const full = Buffer.concat([head, ...fileBufs.map((b, i) => Buffer.concat([b, i < fileBufs.length - 1 ? Buffer.from('\r\n') : Buffer.alloc(0)])), tail]);
+    chunks.push(Buffer.from(`--${boundary}--\r\n`));
+    const full = Buffer.concat(chunks);
     const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },

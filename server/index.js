@@ -82,8 +82,8 @@ function createNetlifyEventFromMultipart(req, method) {
     httpMethod: req.method,
     path: `/.netlify/functions/telegram-proxy/${method}`,
     headers: req.headers,
-    body: bodyBuffer.toString('binary'),
-    isBase64Encoded: false,
+    body: bodyBuffer.toString('base64'),
+    isBase64Encoded: true,
   };
 }
 
