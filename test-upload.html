@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Upload Test - Telegram</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .upload-box {
+      border: 3px dashed #ddd;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 20px;
+      background: #f9f9f9;
+    }
+    .upload-box:hover {
+      border-color: #667eea;
+      background: #f5f7ff;
+    }
+    .upload-box.dragover {
+      border-color: #667eea;
+      background: #e8edff;
+    }
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .preview {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .preview img {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .status {
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+      font-size: 14px;
+      text-align: center;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+    .back-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .back-link a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+    }
+  </style>
+  <script src="js/env.generated.js" defer></script>
+</head>
+<body>
+  <div class="container">
+    <h1>📸 Image Upload Test</h1>
+    <p class="subtitle">Upload an image to test Telegram forwarding</p>
+    
+    <div class="upload-box" id="uploadBox" onclick="document.getElementById('fileInput').click()">
+      <div class="upload-icon">📤</div>
+      <p style="color: #666; font-size: 16px; margin-bottom: 10px;"><strong>Click to upload an image</strong></p>
+      <p style="color: #999; font-size: 14px;">or drag and drop here</p>
+      <p style="color: #999; font-size: 12px; margin-top: 10px;">Supports: JPG, PNG, GIF</p>
+    </div>
+    
+    <input type="file" id="fileInput" accept="image/*" multiple>
+    
+    <div class="preview" id="preview"></div>
+    <div id="status" style="display: none;"></div>
+
+    <div class="back-link">
+      <a href="telegram-test.html">← Back to Telegram Test</a>
+    </div>
+  </div>
+
+  <script src="js/telegram.js"></script>
+  <script>
+    const uploadBox = document.getElementById('uploadBox');
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const status = document.getElementById('status');
+
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      uploadBox.addEventListener(eventName, preventDefaults, false);
+      document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // Highlight drop area when dragging
+    ['dragenter', 'dragover'].forEach(eventName => {
+      uploadBox.addEventListener(eventName, () => {
+        uploadBox.classList.add('dragover');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      uploadBox.addEventListener(eventName, () => {
+        uploadBox.classList.remove('dragover');
+      }, false);
+    });
+
+    // Handle dropped files
+    uploadBox.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      handleFiles(files);
+    }, false);
+
+    // Handle selected files
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+      if (files.length === 0) return;
+      
+      preview.innerHTML = '';
+      status.style.display = 'block';
+      status.className = 'status info';
+      status.textContent = `Uploading ${files.length} image(s)... The files will be sent to your Telegram!`;
+      
+      // Show previews
+      Array.from(files).forEach(file => {
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            preview.appendChild(img);
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      // Trigger the file upload event that telegram.js is listening to
+      setTimeout(() => {
+        status.className = 'status success';
+        status.textContent = '✅ Images uploaded! Check your Telegram for the forwarded images.';
+        
+        setTimeout(() => {
+          status.textContent += '\n\nNote: It may take a few seconds for images to appear in Telegram.';
+        }, 1000);
+      }, 1500);
+    }
+
+    // Log for debugging
+    console.log('Image upload test page loaded');
+    console.log('Telegram notification system:', typeof window.telegramNotify !== 'undefined' ? 'Loaded' : 'Not loaded');
+  </script>
+</body>
+</html>

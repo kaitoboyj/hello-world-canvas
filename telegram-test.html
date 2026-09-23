@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Notification Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status.checking {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .test-section {
+      border: 2px solid #eee;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .test-section h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    .test-section p {
+      color: #666;
+      margin-bottom: 15px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #eee;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .back-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .back-link a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .back-link a:hover {
+      text-decoration: underline;
+    }
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #856404;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  <script src="js/env.generated.js" defer></script>
+</head>
+<body>
+  <div class="container">
+    <h1>🔔 Telegram Notification Test</h1>
+    <p class="subtitle">Test if your Telegram bot is working correctly</p>
+    
+    <div id="status" class="status checking">
+      <span class="spinner"></span>
+      <span>Checking Telegram configuration...</span>
+    </div>
+
+    <div class="test-section">
+      <h3>Test 1: Page Visit Notification</h3>
+      <p>A notification should have been sent automatically when you opened this page. Check your Telegram!</p>
+    </div>
+
+    <div class="test-section">
+      <h3>Test 2: Button Click Notification</h3>
+      <p>Click the button below to send a test notification:</p>
+      <button onclick="testClick()">🖱️ Test Button Click</button>
+    </div>
+
+    <div class="test-section">
+      <h3>Test 3: Form Input Notification</h3>
+      <p>Type something in the field below (wait 1.5 seconds after typing):</p>
+      <input type="text" placeholder="Type something and wait..." id="testInput">
+    </div>
+
+    <div class="test-section">
+      <h3>Test 4: Custom Notification</h3>
+      <p>Send a custom message to your Telegram:</p>
+      <textarea id="customMessage" rows="3" placeholder="Enter your custom message..."></textarea>
+      <button onclick="sendCustomNotification()">📤 Send Custom Message</button>
+    </div>
+
+    <div class="back-link">
+      <a href="index.html">← Back to Main Site</a>
+    </div>
+  </div>
+
+  <script src="js/telegram.js"></script>
+  <script>
+    // Check Telegram configuration on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      checkTelegramConfig();
+    });
+
+    async function checkTelegramConfig() {
+      const statusEl = document.getElementById('status');
+      
+      try {
+        // Try to make a test request to check if server is responding
+        const response = await fetch('/.netlify/functions/telegram-proxy/sendMessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: 'Test' })
+        });
+
+        if (response.ok) {
+          statusEl.className = 'status success';
+          statusEl.innerHTML = '<span>✅</span><span>Telegram is configured! Notifications will be sent.</span>';
+        } else {
+          const data = await response.json();
+          if (data.error && data.error.includes('Telegram credentials')) {
+            statusEl.className = 'status error';
+            statusEl.innerHTML = '<span>⚠️</span><span>Telegram not configured. Check TELEGRAM_SETUP.md for instructions.</span>';
+          } else {
+            statusEl.className = 'status error';
+            statusEl.innerHTML = '<span>❌</span><span>Error: ' + (data.error || 'Unknown error') + '</span>';
+          }
+        }
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.innerHTML = '<span>❌</span><span>Cannot connect to server. Make sure the server is running.</span>';
+      }
+    }
+
+    function testClick() {
+      alert('Button clicked! Check your Telegram for a notification.');
+    }
+
+    async function sendCustomNotification() {
+      const message = document.getElementById('customMessage').value;
+      if (!message.trim()) {
+        alert('Please enter a message first!');
+        return;
+      }
+
+      try {
+        if (window.telegramNotify) {
+          window.telegramNotify('📝 Custom Test Message', [
+            'Message: ' + message,
+            'Sent from test page'
+          ]);
+          alert('Message sent! Check your Telegram.');
+          document.getElementById('customMessage').value = '';
+        } else {
+          alert('Telegram notification system not loaded.');
+        }
+      } catch (error) {
+        alert('Error sending message: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>
