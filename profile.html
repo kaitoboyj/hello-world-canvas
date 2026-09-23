@@ -232,7 +232,8 @@ usernameInput.addEventListener('input', function () {
     return;
   }
   timer = setTimeout(async function () {
-    const { data } = await supabase.rpc('username_available', { check_username: value });
+    const { data, error: rpcErr } = await supabase.rpc('username_available', { check_username: value });
+    if (rpcErr) { usernameNote.textContent = ''; return; }
     usernameNote.textContent = data ? 'This username is available.' : 'This username is already taken.';
     usernameNote.className = 'field-note ' + (data ? 'good' : 'bad');
   }, 350);
@@ -266,8 +267,8 @@ form.addEventListener('submit', async function (e) {
   const username = usernameInput.value.trim();
   if (username.length < 4) return show('Your username must be at least 4 characters long.');
   if (username.toLowerCase() !== originalUsername.toLowerCase()) {
-    const { data: available } = await supabase.rpc('username_available', { check_username: username });
-    if (!available) return show('That username is already taken. Please choose another one.');
+    const { data: available, error: rpcErr } = await supabase.rpc('username_available', { check_username: username });
+    if (!rpcErr && available === false) return show('That username is already taken. Please choose another one.');
   }
 
   const payload = { id: user.id, username: username };
