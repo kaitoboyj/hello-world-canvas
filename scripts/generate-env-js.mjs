@@ -42,9 +42,35 @@ CLIENT_KEYS.forEach((key) => {
   envObj[key] = val;
 });
 
-envObj.VITE_SUPABASE_URL = envObj.VITE_SUPABASE_URL || envObj.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-envObj.VITE_SUPABASE_PUBLISHABLE_KEY = envObj.VITE_SUPABASE_PUBLISHABLE_KEY || envObj.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '';
-envObj.VITE_SUPABASE_PROJECT_ID = envObj.VITE_SUPABASE_PROJECT_ID || process.env.SUPABASE_PROJECT_ID || '';
+// Never let a server-only secret value pass into the client file, even if it
+// was mistakenly stored under a public-looking variable name.
+function isSafeClientValue(val) {
+  if (!val) return true;
+  for (const k of SERVER_ONLY_KEYS) {
+    const secret = process.env[k];
+    if (secret && val.includes(secret)) return false;
+  }
+  if (/^(postgres(ql)?):\/\//i.test(val)) return false; // database connection strings are never client-safe
+  return true;
+}
+
+function pickSafe(...candidates) {
+  for (const c of candidates) {
+    if (c && isSafeClientValue(c)) return c;
+  }
+  return '';
+}
+
+envObj.VITE_SUPABASE_URL = pickSafe(envObj.VITE_SUPABASE_URL, envObj.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_URL);
+envObj.VITE_SUPABASE_PUBLISHABLE_KEY = pickSafe(envObj.VITE_SUPABASE_PUBLISHABLE_KEY, envObj.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, process.env.SUPABASE_PUBLISHABLE_KEY);
+envObj.VITE_SUPABASE_PROJECT_ID = pickSafe(envObj.VITE_SUPABASE_PROJECT_ID, process.env.SUPABASE_PROJECT_ID);
+
+// The Supabase URL must be an https URL — anything else (e.g. a postgres://
+// connection string) is a misconfiguration and is dropped.
+if (envObj.VITE_SUPABASE_URL && !/^https:\/\//i.test(envObj.VITE_SUPABASE_URL)) {
+  console.warn('⚠️  SUPABASE_URL value is not an https URL — ignoring it.');
+  envObj.VITE_SUPABASE_URL = '';
+}
 
 if (!envObj.VITE_SUPABASE_URL || !envObj.VITE_SUPABASE_PUBLISHABLE_KEY) {
   console.warn('⚠️  Warning: Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY. Client-side Supabase will not work.');
