@@ -3,8 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 function getEnv() {
   const w = typeof window !== 'undefined' ? (window.__ENV || {}) : {};
   return {
-    url: w.VITE_SUPABASE_URL || w.NEXT_PUBLIC_SUPABASE_URL || 'https://ivsropdgnckrwfwibfei.supabase.co',
-    key: w.VITE_SUPABASE_PUBLISHABLE_KEY || w.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_vQ9NCiXNlvIhawl7xAk6vg_fykHMv_c',
+    url: w.VITE_SUPABASE_URL || w.NEXT_PUBLIC_SUPABASE_URL || 'https://vyojuxtoigpvvjepdimo.supabase.co',
+    key: w.VITE_SUPABASE_PUBLISHABLE_KEY || w.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_QnSAYnmh74bPgdTlRF5KMQ_QGAobhug',
   };
 }
 
