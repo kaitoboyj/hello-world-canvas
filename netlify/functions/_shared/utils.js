@@ -213,4 +213,6 @@ module.exports = {
   chunkText,
   sendTelegramRequest,
   sleep,
+  checkTelegramEnv,
+  checkAdminPasswordEnv,
 };
