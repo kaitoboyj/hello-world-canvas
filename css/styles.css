@@ -275,6 +275,8 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
   z-index: 1;
   padding-top: 100px;
+  width: 100%;
+  min-width: 0;
   max-width: 1280px;
   margin: 0 auto;
   padding: 120px 1.5rem 80px;
@@ -282,6 +284,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .hero-badge {
   display: inline-flex;
+  max-width: 100%;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1.25rem;
@@ -297,6 +300,15 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   letter-spacing: 1.2px;
   text-transform: uppercase;
+}
+
+.hero-badge span:not(.dot) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.hero-badge .dot {
+  flex-shrink: 0;
 }
 
 .hero-badge .dot {
@@ -2174,26 +2186,33 @@ h1, h2, h3, h4, h5, h6 {
 
 @media (max-width: 768px) {
   .nav-menu {
-    position: fixed;
-    top: 76px;
+    position: absolute;
+    top: 100%;
     left: 0;
     right: 0;
     background: var(--black-900);
     flex-direction: column;
-    padding: 2rem;
-    gap: 1.5rem;
-    transform: translateY(-150%);
-    transition: transform 0.3s ease;
+    align-items: stretch;
+    padding: 1rem 1.5rem;
+    gap: 0;
+    display: none;
+    max-height: calc(100dvh - 76px);
+    overflow-y: auto;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .nav-menu.open {
-    transform: translateY(0);
+    display: flex;
   }
 
   .nav-menu a {
-    font-size: 1.05rem;
+    display: block;
+    font-size: 1rem;
+    padding: .75rem 0;
   }
+
+  .nav-account { min-width: 0; }
+  .account-dropdown { left: 0; right: auto; max-width: calc(100vw - 3rem); }
 
   .nav-toggle {
     display: block;
@@ -2206,6 +2225,44 @@ h1, h2, h3, h4, h5, h6 {
   .hero-actions .btn {
     width: 100%;
   }
+
+  .hero {
+    min-height: 0;
+  }
+
+  .hero-content {
+    padding: 8rem 1.5rem 4rem;
+  }
+
+  .hero h1 {
+    font-size: 2.5rem;
+    overflow-wrap: anywhere;
+  }
+
+  .hero-stats,
+  .trust-items,
+  .how-grid,
+  .team-grid,
+  .testimonials-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .testimonial-card { padding: 1.5rem; }
+
+  .hero-stats { gap: .75rem; }
+
+  .hero-actions .btn,
+  .cta-actions .btn { white-space: normal; text-align: center; }
+
+  .form-input,
+  .form-select,
+  .form-textarea { min-width: 0; width: 100%; font-size: 1rem; }
+
+  .form-actions { gap: .75rem; }
+  .form-actions .btn { min-width: 0; white-space: normal; text-align: center; padding-inline: 1rem; }
+
+  .file-info { min-width: 0; }
+  .file-info .name { overflow-wrap: anywhere; }
 
   .section {
     padding: 4rem 0;
@@ -2244,6 +2301,15 @@ h1, h2, h3, h4, h5, h6 {
   .review-grid {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 380px) {
+  .container, .nav-container { padding-inline: 1rem; }
+  .hero-content { padding-inline: 1rem; }
+  .hero-badge { padding: .5rem .75rem; }
+  .hero h1 { font-size: 2.15rem; }
+  .form-card { padding: 1rem; }
+  .form-actions { flex-wrap: wrap; }
 }
 
 .fade-in {
