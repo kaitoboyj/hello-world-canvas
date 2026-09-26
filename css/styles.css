@@ -2242,9 +2242,12 @@ h1, h2, h3, h4, h5, h6 {
   .hero-stats,
   .trust-items,
   .how-grid,
-  .team-grid {
+  .team-grid,
+  .testimonials-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .testimonial-card { padding: 1.5rem; }
 
   .hero-stats { gap: .75rem; }
 
