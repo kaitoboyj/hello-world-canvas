@@ -22,13 +22,22 @@ function initNavbar() {
   });
 
   if (toggle && menu) {
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-controls', menu.id);
     toggle.addEventListener('click', function () {
       menu.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(menu.classList.contains('open')));
       const icon = toggle.querySelector('svg');
       if (menu.classList.contains('open')) {
         icon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>';
       } else {
         icon.innerHTML = '<line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>';
+      }
+    });
+    menu.addEventListener('click', function (event) {
+      if (event.target.closest('a')) {
+        menu.classList.remove('open');
+        toggle.setAttribute('aria-expanded', 'false');
       }
     });
   }
